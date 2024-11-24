@@ -26,7 +26,7 @@ extern "C" {
         context: *mut xm_context_t,
         output: *mut c_float,
         numsamples: size_t,
-    );
+    ) -> c_int;
     pub fn xm_set_max_loop_count(context: *mut xm_context_t, loopcnt: u8);
     pub fn xm_get_loop_count(context: *mut xm_context_t) -> u8;
     pub fn xm_get_module_name(context: *mut xm_context_t) -> *const c_char;

@@ -107,13 +107,15 @@ impl XMContext {
     /// Plays the module and puts the sound samples in the specified output buffer.
     /// The output is in stereo.
     #[inline]
-    pub fn generate_samples(&mut self, output: &mut [f32]) {
+    pub fn generate_samples(&mut self, output: &mut [f32]) -> usize {
         unsafe {
             // Output buffer must have a multiple-of-two length.
             assert!(output.len() % 2 == 0);
 
             let output_len = (output.len() / 2) as ffi::size_t;
-            ffi::xm_generate_samples(self.raw, output.as_mut_ptr(), output_len);
+            let samples = ffi::xm_generate_samples(self.raw, output.as_mut_ptr(), output_len);
+
+            (samples * 2) as usize
         }
     }
 
