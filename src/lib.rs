@@ -48,7 +48,7 @@ pub enum XMError {
     /// The module data is corrupted or invalid
     ModuleDataNotSane,
     /// There was an issue allocating additional memory
-    MemoryAllocationFailed
+    MemoryAllocationFailed,
 }
 
 /// The return values from `XMContext::get_playing_speed()`.
@@ -57,7 +57,7 @@ pub struct PlayingSpeed {
     /// Beats per minute
     pub bpm: u16,
     /// Ticks per line
-    pub tempo: u16
+    pub tempo: u16,
 }
 
 /// The return values from `XMContext::get_position()`.
@@ -70,12 +70,12 @@ pub struct Position {
     /// Row number
     pub row: u8,
     /// Total number of generated samples
-    pub samples: u64
+    pub samples: u64,
 }
 
 /// The XM context.
 pub struct XMContext {
-    raw: *mut ffi::xm_context_t
+    raw: *mut ffi::xm_context_t,
 }
 
 unsafe impl Send for XMContext {}
@@ -96,12 +96,10 @@ impl XMContext {
 
             let result = ffi::xm_create_context_safe(&mut raw, mod_data_ptr, mod_data_len, rate);
             match result {
-                0 => Ok(XMContext {
-                    raw: raw
-                }),
+                0 => Ok(XMContext { raw: raw }),
                 1 => Err(XMError::ModuleDataNotSane),
                 2 => Err(XMError::MemoryAllocationFailed),
-                _ => Err(XMError::Unknown(result))
+                _ => Err(XMError::Unknown(result)),
             }
         }
     }
@@ -125,7 +123,9 @@ impl XMContext {
     /// generate silence.
     #[inline]
     pub fn set_max_loop_count(&mut self, loopcnt: u8) {
-        unsafe { ffi::xm_set_max_loop_count(self.raw, loopcnt); }
+        unsafe {
+            ffi::xm_set_max_loop_count(self.raw, loopcnt);
+        }
     }
 
     /// Gets the loop count of the currently playing module.
@@ -138,7 +138,7 @@ impl XMContext {
     }
 
     /// Gets the module name as a byte slice. The string encoding is unknown.
-    /// 
+    ///
     /// Returns None if the XM_STRINGS build setting is false.
     #[inline]
     pub fn module_name(&self) -> Option<&[u8]> {
@@ -154,7 +154,7 @@ impl XMContext {
     }
 
     /// Gets the tracker name as a byte slice. The string encoding is unknown.
-    /// 
+    ///
     /// Returns None if the XM_STRINGS build setting is false.
     #[inline]
     pub fn tracker_name(&self) -> Option<&[u8]> {
@@ -224,7 +224,7 @@ impl XMContext {
 
         PlayingSpeed {
             bpm: bpm,
-            tempo: tempo
+            tempo: tempo,
         }
     }
 
@@ -233,13 +233,21 @@ impl XMContext {
     pub fn position(&self) -> Position {
         let (mut pattern_index, mut pattern, mut row) = (0, 0, 0);
         let mut samples = 0;
-        unsafe { ffi::xm_get_position(self.raw, &mut pattern_index, &mut pattern, &mut row, &mut samples) };
+        unsafe {
+            ffi::xm_get_position(
+                self.raw,
+                &mut pattern_index,
+                &mut pattern,
+                &mut row,
+                &mut samples,
+            )
+        };
 
         Position {
             pattern_index: pattern_index,
             pattern: pattern,
             row: row,
-            samples: samples
+            samples: samples,
         }
     }
 
@@ -283,6 +291,45 @@ impl XMContext {
         assert!(channel <= self.number_of_channels());
 
         unsafe { ffi::xm_get_latest_trigger_of_channel(self.raw, channel) }
+    }
+
+    /// Seek to a specific position in a module
+    ///
+    /// WARNING: WITH BIG LETTERS: seeking modules is broken by design,
+    /// don't expect miracles
+    #[inline]
+    pub fn seek(&mut self, pot: u8, row: u8, tick: u16) {
+        unsafe {
+            ffi::xm_seek(self.raw, pot, row, tick);
+        }
+    }
+
+    /// Mute or unmute a channel
+    ///
+    /// # Note
+    /// Channel numbers go from `1` to `get_number_of_channels()`
+    ///
+    /// # Return
+    /// Whether the channel was muted
+    pub fn mute_channel(&mut self, channel: u16, mute: bool) -> bool {
+        assert!(channel >= 1);
+        assert!(channel <= self.number_of_channels());
+
+        unsafe { ffi::xm_mute_channel(self.raw, channel, mute) }
+    }
+
+    /// Mute or unmute a instrument
+    ///
+    /// # Note
+    /// Instrument numbers go from `1` to `get_number_of_channels()`
+    ///
+    /// # Return
+    /// Whether the channel was muted
+    pub fn mute_instrument(&mut self, instrument: u16, mute: bool) -> bool {
+        assert!(instrument >= 1);
+        assert!(instrument <= self.number_of_instruments());
+
+        unsafe { ffi::xm_mute_instrument(self.raw, instrument, mute) }
     }
 }
 
